@@ -1,0 +1,1 @@
+C:\Work\Project\MyGit\WindowProject\Direct3D12Training\Tutorials\Tutorial01\Tutorial01.vcxproj;x86
