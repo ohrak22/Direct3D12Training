@@ -3,11 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
 VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CreateWindow", "CreateWindow\CreateWindow.vcxproj", "{79A1FB8C-7829-42CB-B3E0-8C3A9EA68EFC}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "01.CreateWindow", "CreateWindow\CreateWindow.vcxproj", "{79A1FB8C-7829-42CB-B3E0-8C3A9EA68EFC}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "EmptyApp", "EmptyApp\EmptyApp.vcxproj", "{D1FDA52C-B8F9-45BA-B9B3-C9CD3E7CA9DD}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "00.EmptyApp", "EmptyApp\EmptyApp.vcxproj", "{D1FDA52C-B8F9-45BA-B9B3-C9CD3E7CA9DD}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DirectX12Template", "DirectX12Template\DirectX12Template.vcxproj", "{A7B63323-E08C-45D2-A307-6FECAD98E367}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "00.DirectX12Template", "DirectX12Template\DirectX12Template.vcxproj", "{A7B63323-E08C-45D2-A307-6FECAD98E367}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
