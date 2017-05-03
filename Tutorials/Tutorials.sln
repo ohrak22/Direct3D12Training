@@ -9,6 +9,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "00.DirectX12Template", "Dir
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "02.CreateDevice", "CreateDevice\CreateDevice.vcxproj", "{3C8FC0D5-8EEF-433F-A101-DB519C67F432}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "03.DrawingTriangle", "DrawingTriangle\DrawingTriangle.vcxproj", "{53C1D67D-2952-405A-87A3-032D8D6AECAC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|ARM = Debug|ARM
@@ -73,6 +75,24 @@ Global
 		{3C8FC0D5-8EEF-433F-A101-DB519C67F432}.Release|x86.ActiveCfg = Release|Win32
 		{3C8FC0D5-8EEF-433F-A101-DB519C67F432}.Release|x86.Build.0 = Release|Win32
 		{3C8FC0D5-8EEF-433F-A101-DB519C67F432}.Release|x86.Deploy.0 = Release|Win32
+		{53C1D67D-2952-405A-87A3-032D8D6AECAC}.Debug|ARM.ActiveCfg = Debug|ARM
+		{53C1D67D-2952-405A-87A3-032D8D6AECAC}.Debug|ARM.Build.0 = Debug|ARM
+		{53C1D67D-2952-405A-87A3-032D8D6AECAC}.Debug|ARM.Deploy.0 = Debug|ARM
+		{53C1D67D-2952-405A-87A3-032D8D6AECAC}.Debug|x64.ActiveCfg = Debug|x64
+		{53C1D67D-2952-405A-87A3-032D8D6AECAC}.Debug|x64.Build.0 = Debug|x64
+		{53C1D67D-2952-405A-87A3-032D8D6AECAC}.Debug|x64.Deploy.0 = Debug|x64
+		{53C1D67D-2952-405A-87A3-032D8D6AECAC}.Debug|x86.ActiveCfg = Debug|Win32
+		{53C1D67D-2952-405A-87A3-032D8D6AECAC}.Debug|x86.Build.0 = Debug|Win32
+		{53C1D67D-2952-405A-87A3-032D8D6AECAC}.Debug|x86.Deploy.0 = Debug|Win32
+		{53C1D67D-2952-405A-87A3-032D8D6AECAC}.Release|ARM.ActiveCfg = Release|ARM
+		{53C1D67D-2952-405A-87A3-032D8D6AECAC}.Release|ARM.Build.0 = Release|ARM
+		{53C1D67D-2952-405A-87A3-032D8D6AECAC}.Release|ARM.Deploy.0 = Release|ARM
+		{53C1D67D-2952-405A-87A3-032D8D6AECAC}.Release|x64.ActiveCfg = Release|x64
+		{53C1D67D-2952-405A-87A3-032D8D6AECAC}.Release|x64.Build.0 = Release|x64
+		{53C1D67D-2952-405A-87A3-032D8D6AECAC}.Release|x64.Deploy.0 = Release|x64
+		{53C1D67D-2952-405A-87A3-032D8D6AECAC}.Release|x86.ActiveCfg = Release|Win32
+		{53C1D67D-2952-405A-87A3-032D8D6AECAC}.Release|x86.Build.0 = Release|Win32
+		{53C1D67D-2952-405A-87A3-032D8D6AECAC}.Release|x86.Deploy.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

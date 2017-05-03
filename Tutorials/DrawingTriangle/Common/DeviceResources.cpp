@@ -36,7 +36,7 @@ namespace ScreenRotation
 		0.0f, 1.0f, 0.0f, 0.0f,
 		0.0f, 0.0f, 1.0f, 0.0f,
 		0.0f, 0.0f, 0.0f, 1.0f
-		);
+	);
 
 	// 90도 Z 회전
 	static const XMFLOAT4X4 Rotation90(
@@ -44,7 +44,7 @@ namespace ScreenRotation
 		-1.0f, 0.0f, 0.0f, 0.0f,
 		0.0f, 0.0f, 1.0f, 0.0f,
 		0.0f, 0.0f, 0.0f, 1.0f
-		);
+	);
 
 	// 180도 Z 회전
 	static const XMFLOAT4X4 Rotation180(
@@ -52,7 +52,7 @@ namespace ScreenRotation
 		0.0f, -1.0f, 0.0f, 0.0f,
 		0.0f, 0.0f, 1.0f, 0.0f,
 		0.0f, 0.0f, 0.0f, 1.0f
-		);
+	);
 
 	// 270도 Z 회전
 	static const XMFLOAT4X4 Rotation270(
@@ -60,7 +60,7 @@ namespace ScreenRotation
 		1.0f, 0.0f, 0.0f, 0.0f,
 		0.0f, 0.0f, 1.0f, 0.0f,
 		0.0f, 0.0f, 0.0f, 1.0f
-		);
+	);
 };
 
 // DeviceResources의 생성자입니다.
@@ -114,7 +114,7 @@ void DX::DeviceResources::CreateDeviceResources()
 		adapter.Get(),					// 하드웨어 어댑터입니다.
 		D3D_FEATURE_LEVEL_11_0,			// 이 앱이 지원할 수 있는 최대 기능 수준입니다.
 		IID_PPV_ARGS(&m_d3dDevice)		// 만들어진 Direct3D 장치를 반환합니다.
-		);
+	);
 
 #if defined(_DEBUG)
 	if (FAILED(hr))
@@ -161,7 +161,7 @@ void DX::DeviceResources::CreateDeviceResources()
 	{
 		DX::ThrowIfFailed(
 			m_d3dDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocators[n]))
-			);
+		);
 	}
 
 	// 동기화 개체를 만듭니다.
@@ -243,8 +243,8 @@ void DX::DeviceResources::CreateWindowSizeDependentResources()
 				&swapChainDesc,
 				nullptr,
 				&swapChain
-				)
-			);
+			)
+		);
 
 		DX::ThrowIfFailed(swapChain.As(&m_swapChain));
 	}
@@ -277,7 +277,7 @@ void DX::DeviceResources::CreateWindowSizeDependentResources()
 
 	DX::ThrowIfFailed(
 		m_swapChain->SetRotation(displayRotation)
-		);
+	);
 
 	// 스왑 체인 백 버퍼의 렌더링 대상 뷰를 만듭니다.
 	{
@@ -313,7 +313,7 @@ void DX::DeviceResources::CreateWindowSizeDependentResources()
 			D3D12_RESOURCE_STATE_DEPTH_WRITE,
 			&depthOptimizedClearValue,
 			IID_PPV_ARGS(&m_depthStencil)
-			));
+		));
 
 		NAME_D3D12_OBJECT(m_depthStencil);
 

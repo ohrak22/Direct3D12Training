@@ -18,15 +18,8 @@ Device::Device(DXGI_FORMAT backBufferFormat, DXGI_FORMAT depthBufferFormat) :
 	m_rtvDescriptorSize(0),
 	m_fenceEvent(0),
 	m_backBufferFormat(backBufferFormat),
-	m_depthBufferFormat(depthBufferFormat),
 	m_fenceValues{},
-	m_d3dRenderTargetSize(),
 	m_outputSize(),
-	m_logicalSize(),
-	m_nativeOrientation(DisplayOrientations::None),
-	m_currentOrientation(DisplayOrientations::None),
-	m_dpi(-1.0f),
-	m_effectiveDpi(-1.0f),
 	m_deviceRemoved(false)
 {
 	CreateDeviceResources();
@@ -106,315 +99,6 @@ void Device::CreateDeviceResources()
 	m_fenceEvent = CreateEventEx(nullptr, FALSE, FALSE, EVENT_ALL_ACCESS);
 }
 
-// 창 크기가 변경될 때마다 이러한 리소스를 다시 만들어야 합니다.
-void Device::CreateWindowSizeDependentResources()
-{
-	// 모든 이전 GPU 작업이 완료될 때까지 기다립니다.
-	WaitForGpu();
-
-	// 이전 창 크기 관련 콘텐츠를 지우고 추적된 fence 값을 업데이트합니다.
-	for (UINT n = 0; n < g_frameCount; n++)
-	{
-		m_renderTargets[n] = nullptr;
-		m_fenceValues[n] = m_fenceValues[m_currentFrame];
-	}
-
-	UpdateRenderTargetSize();
-
-	// 스왑 체인의 너비와 높이는 창의 가로 방향 너비 및 높이를
-	// 기준으로 해야 합니다. 창이 기준 방향이 아닌 경우에는
-	// 치수를 반대로 해야 합니다.
-	DXGI_MODE_ROTATION displayRotation = ComputeDisplayRotation();
-
-	bool swapDimensions = displayRotation == DXGI_MODE_ROTATION_ROTATE90 || displayRotation == DXGI_MODE_ROTATION_ROTATE270;
-	m_d3dRenderTargetSize.Width = swapDimensions ? m_outputSize.Height : m_outputSize.Width;
-	m_d3dRenderTargetSize.Height = swapDimensions ? m_outputSize.Width : m_outputSize.Height;
-
-	UINT backBufferWidth = lround(m_d3dRenderTargetSize.Width);
-	UINT backBufferHeight = lround(m_d3dRenderTargetSize.Height);
-
-	if (m_swapChain != nullptr)
-	{
-		// 스왑 체인이 이미 존재할 경우 크기를 조정합니다.
-		HRESULT hr = m_swapChain->ResizeBuffers(g_frameCount, backBufferWidth, backBufferHeight, m_backBufferFormat, 0);
-
-		if (hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET)
-		{
-			// 어떤 이유로든 장치가 제거된 경우 새 장치와 스왑 체인을 만들어야 합니다.
-			m_deviceRemoved = true;
-
-			// 이 메서드를 계속 실행하지 마세요. Device가 제거되고 다시 만들어집니다.
-			return;
-		}
-		else
-		{
-			DX::ThrowIfFailed(hr);
-		}
-	}
-	else
-	{
-		// 그렇지 않으면 기존 Direct3D 장치와 동일한 어댑터를 사용하여 새 항목을 만듭니다.
-		//DXGI_SCALING scaling = DisplayMetrics::SupportHighResolutions ? DXGI_SCALING_NONE : DXGI_SCALING_STRETCH;
-		DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
-
-		swapChainDesc.Width = backBufferWidth;						// 창의 크기를 맞춥니다.
-		swapChainDesc.Height = backBufferHeight;
-		swapChainDesc.Format = m_backBufferFormat;
-		swapChainDesc.Stereo = false;
-		swapChainDesc.SampleDesc.Count = 1;							// 다중 샘플링을 사용하지 않습니다.
-		swapChainDesc.SampleDesc.Quality = 0;
-		swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-		swapChainDesc.BufferCount = g_frameCount;					// 3중 버퍼링을 사용하여 대기 시간을 최소화합니다.
-		swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;	// 모든 Windows 유니버설 앱은 _FLIP_ SwapEffects를 사용해야 합니다.
-		swapChainDesc.Flags = 0;
-		//swapChainDesc.Scaling = scaling;
-		swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
-
-		ComPtr<IDXGISwapChain1> swapChain;
-		DX::ThrowIfFailed(
-			m_dxgiFactory->CreateSwapChainForCoreWindow(
-				m_commandQueue.Get(),								// 스왑 체인에는 DirectX 12의 명령 큐에 대한 참조가 필요합니다.
-				reinterpret_cast<IUnknown*>(m_window.Get()),
-				&swapChainDesc,
-				nullptr,
-				&swapChain
-			)
-		);
-
-		DX::ThrowIfFailed(swapChain.As(&m_swapChain));
-	}
-
-	// 스왑 체인 백 버퍼의 렌더링 대상 뷰를 만듭니다.
-	m_currentFrame = m_swapChain->GetCurrentBackBufferIndex();
-	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvDescriptor(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
-	for (UINT n = 0; n < g_frameCount; n++)
-	{
-		DX::ThrowIfFailed(m_swapChain->GetBuffer(n, IID_PPV_ARGS(&m_renderTargets[n])));
-		m_d3dDevice->CreateRenderTargetView(m_renderTargets[n].Get(), nullptr, rtvDescriptor);
-		rtvDescriptor.Offset(m_rtvDescriptorSize);
-
-		WCHAR name[25];
-		if (swprintf_s(name, L"m_renderTargets[%u]", n) > 0)
-		{
-			DX::SetName(m_renderTargets[n].Get(), name);
-		}
-	}
-
-	// 전체 창을 대상으로 하기 위한 3D 렌더링 뷰포트를 설정합니다.
-	m_screenViewport = { 0.0f, 0.0f, m_d3dRenderTargetSize.Width, m_d3dRenderTargetSize.Height, 0.0f, 1.0f };
-}
-
-// 렌더링 대상의 크기와 렌더링 대상이 축소될지 여부를 결정합니다.
-void Device::UpdateRenderTargetSize()
-{
-	m_effectiveDpi = m_dpi;
-
-	// 필요한 렌더링 대상 크기를 픽셀 단위로 계산합니다.
-	m_outputSize.Width = DX::ConvertDipsToPixels(m_logicalSize.Width, m_effectiveDpi);
-	m_outputSize.Height = DX::ConvertDipsToPixels(m_logicalSize.Height, m_effectiveDpi);
-
-	// DirectX 콘텐츠 크기를 0으로 만들지 않습니다.
-	m_outputSize.Width = max(m_outputSize.Width, 1);
-	m_outputSize.Height = max(m_outputSize.Height, 1);
-}
-
-// 이 메서드는 CoreWindow를 만들거나 다시 만들 때 호출됩니다.
-void Device::SetWindow(CoreWindow^ window)
-{
-	DisplayInformation^ currentDisplayInformation = DisplayInformation::GetForCurrentView();
-
-	m_window = window;
-	m_logicalSize = Windows::Foundation::Size(window->Bounds.Width, window->Bounds.Height);
-	m_nativeOrientation = currentDisplayInformation->NativeOrientation;
-	m_currentOrientation = currentDisplayInformation->CurrentOrientation;
-	m_dpi = currentDisplayInformation->LogicalDpi;
-
-	CreateWindowSizeDependentResources();
-}
-
-// 이 메서드는 SizeChanged 이벤트의 이벤트 처리기에서 호출됩니다.
-void Device::SetLogicalSize(Windows::Foundation::Size logicalSize)
-{
-	if (m_logicalSize != logicalSize)
-	{
-		m_logicalSize = logicalSize;
-		CreateWindowSizeDependentResources();
-	}
-}
-
-// 이 메서드는 DpiChanged 이벤트의 이벤트 처리기에서 호출됩니다.
-void Device::SetDpi(float dpi)
-{
-	if (dpi != m_dpi)
-	{
-		m_dpi = dpi;
-
-		// 디스플레이 DPI가 변경된 경우 창의 논리적 크기(DIP 단위로 측정)도 변경되며 업데이트해야 합니다.
-		m_logicalSize = Windows::Foundation::Size(m_window->Bounds.Width, m_window->Bounds.Height);
-
-		CreateWindowSizeDependentResources();
-	}
-}
-
-// 이 메서드는 OrientationChanged 이벤트의 이벤트 처리기에서 호출됩니다.
-void Device::SetCurrentOrientation(DisplayOrientations currentOrientation)
-{
-	if (m_currentOrientation != currentOrientation)
-	{
-		m_currentOrientation = currentOrientation;
-		CreateWindowSizeDependentResources();
-	}
-}
-
-// 이 메서드는 DisplayContentsInvalidated 이벤트의 이벤트 처리기에서 호출됩니다.
-void Device::ValidateDevice()
-{
-	// 기본 어댑터가 장치가 만들어진 이후에 변경되거나 장치가 제거된 경우
-	// D3D 장치는 더 이상 유효하지 않습니다.
-
-	// 먼저 장치를 만들었을 때의 기본 어댑터에 대한 LUID를 가져옵니다.
-	DXGI_ADAPTER_DESC previousDesc;
-	{
-		ComPtr<IDXGIAdapter1> previousDefaultAdapter;
-		DX::ThrowIfFailed(m_dxgiFactory->EnumAdapters1(0, &previousDefaultAdapter));
-
-		DX::ThrowIfFailed(previousDefaultAdapter->GetDesc(&previousDesc));
-	}
-
-	// 다음으로, 현재 기본 어댑터에 대한 정보를 가져옵니다.
-	DXGI_ADAPTER_DESC currentDesc;
-	{
-		ComPtr<IDXGIFactory4> currentDxgiFactory;
-		DX::ThrowIfFailed(CreateDXGIFactory1(IID_PPV_ARGS(&currentDxgiFactory)));
-
-		ComPtr<IDXGIAdapter1> currentDefaultAdapter;
-		DX::ThrowIfFailed(currentDxgiFactory->EnumAdapters1(0, &currentDefaultAdapter));
-
-		DX::ThrowIfFailed(currentDefaultAdapter->GetDesc(&currentDesc));
-	}
-
-	// 어댑터 LUID가 일치하지 않거나 장치가 제거되었다고 보고하는 경우
-	// 새 D3D 장치를 만들어야 합니다.
-	if (previousDesc.AdapterLuid.LowPart != currentDesc.AdapterLuid.LowPart ||
-		previousDesc.AdapterLuid.HighPart != currentDesc.AdapterLuid.HighPart ||
-		FAILED(m_d3dDevice->GetDeviceRemovedReason()))
-	{
-		m_deviceRemoved = true;
-	}
-}
-
-// 스왑 체인의 콘텐츠를 화면에 표시합니다.
-void Device::Present()
-{
-	// 첫 번째 인수는 DXGI에 VSync까지 차단하도록 지시하여 응용 프로그램이
-	// 다음 VSync까지 대기하도록 합니다. 이를 통해 화면에 표시되지 않는 프레임을
-	// 렌더링하는 주기를 낭비하지 않을 수 있습니다.
-	HRESULT hr = m_swapChain->Present(1, 0);
-
-	// 연결이 끊기거나 드라이버 업그레이드로 인해 장치가 제거되면 
-	// 모든 장치 리소스를 다시 만들어야 합니다.
-	if (hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET)
-	{
-		m_deviceRemoved = true;
-	}
-	else
-	{
-		DX::ThrowIfFailed(hr);
-
-		MoveToNextFrame();
-	}
-}
-
-// 일시 중단 중인 GPU 작업이 완료될 때까지 기다립니다.
-void Device::WaitForGpu()
-{
-	// 큐에서 신호 명령을 예약합니다.
-	DX::ThrowIfFailed(m_commandQueue->Signal(m_fence.Get(), m_fenceValues[m_currentFrame]));
-
-	// fence를 넘을 때까지 기다립니다.
-	DX::ThrowIfFailed(m_fence->SetEventOnCompletion(m_fenceValues[m_currentFrame], m_fenceEvent));
-	WaitForSingleObjectEx(m_fenceEvent, INFINITE, FALSE);
-
-	// 현재 프레임에 대한 fence 값을 구현합니다.
-	m_fenceValues[m_currentFrame]++;
-}
-
-// 다음 프레임을 렌더링하도록 준비합니다.
-void Device::MoveToNextFrame()
-{
-	// 큐에서 신호 명령을 예약합니다.
-	const UINT64 currentFenceValue = m_fenceValues[m_currentFrame];
-	DX::ThrowIfFailed(m_commandQueue->Signal(m_fence.Get(), currentFenceValue));
-
-	//프레임 인덱스로 이동합니다.
-	m_currentFrame = m_swapChain->GetCurrentBackBufferIndex();
-
-	// 다음 프레임을 시작할 준비가 되었는지 확인하세요.
-	if (m_fence->GetCompletedValue() < m_fenceValues[m_currentFrame])
-	{
-		DX::ThrowIfFailed(m_fence->SetEventOnCompletion(m_fenceValues[m_currentFrame], m_fenceEvent));
-		WaitForSingleObjectEx(m_fenceEvent, INFINITE, FALSE);
-	}
-
-	// 다음 프레임에 대한 fence 값을 설정합니다.
-	m_fenceValues[m_currentFrame] = currentFenceValue + 1;
-}
-
-// 이 메서드는 디스플레이 장치의 기본 방향과 현재 디스플레이 방향 간의 회전을
-// 확인합니다.
-DXGI_MODE_ROTATION Device::ComputeDisplayRotation()
-{
-	DXGI_MODE_ROTATION rotation = DXGI_MODE_ROTATION_UNSPECIFIED;
-
-	// 참고: NativeOrientation은 DisplayOrientations 열거형이 다른 값을 포함하더라도
-	// Landscape 또는 Portrait만 될 수 있습니다.
-	switch (m_nativeOrientation)
-	{
-	case DisplayOrientations::Landscape:
-		switch (m_currentOrientation)
-		{
-		case DisplayOrientations::Landscape:
-			rotation = DXGI_MODE_ROTATION_IDENTITY;
-			break;
-
-		case DisplayOrientations::Portrait:
-			rotation = DXGI_MODE_ROTATION_ROTATE270;
-			break;
-
-		case DisplayOrientations::LandscapeFlipped:
-			rotation = DXGI_MODE_ROTATION_ROTATE180;
-			break;
-
-		case DisplayOrientations::PortraitFlipped:
-			rotation = DXGI_MODE_ROTATION_ROTATE90;
-			break;
-		}
-		break;
-
-	case DisplayOrientations::Portrait:
-		switch (m_currentOrientation)
-		{
-		case DisplayOrientations::Landscape:
-			rotation = DXGI_MODE_ROTATION_ROTATE90;
-			break;
-
-		case DisplayOrientations::Portrait:
-			rotation = DXGI_MODE_ROTATION_IDENTITY;
-			break;
-
-		case DisplayOrientations::LandscapeFlipped:
-			rotation = DXGI_MODE_ROTATION_ROTATE270;
-			break;
-
-		case DisplayOrientations::PortraitFlipped:
-			rotation = DXGI_MODE_ROTATION_ROTATE180;
-			break;
-		}
-		break;
-	}
-	return rotation;
-}
-
 // 이 메서드는 Direct3D 12를 지원하는 사용 가능한 첫 번째 하드웨어 어댑터를 가져옵니다.
 // 그러한 어댑터를 찾을 수 없는 경우 *ppAdapter는 nullptr로 설정됩니다.
 void Device::GetHardwareAdapter(IDXGIAdapter1** ppAdapter)
@@ -443,3 +127,130 @@ void Device::GetHardwareAdapter(IDXGIAdapter1** ppAdapter)
 
 	*ppAdapter = adapter.Detach();
 }
+
+// 이 메서드는 CoreWindow를 만들거나 다시 만들 때 호출됩니다.
+void Device::SetWindow(CoreWindow^ window)
+{
+	DisplayInformation^ currentDisplayInformation = DisplayInformation::GetForCurrentView();
+
+	m_window = window;
+
+	UINT backBufferWidth = lround(m_outputSize.Width);
+	UINT backBufferHeight = lround(m_outputSize.Height);
+
+	if (m_swapChain != nullptr)
+	{
+		// 스왑 체인이 이미 존재할 경우 크기를 조정합니다.
+		HRESULT hr = m_swapChain->ResizeBuffers(g_frameCount, backBufferWidth, backBufferHeight, m_backBufferFormat, 0);
+
+		if (hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET)
+		{
+			// 어떤 이유로든 장치가 제거된 경우 새 장치와 스왑 체인을 만들어야 합니다.
+			m_deviceRemoved = true;
+
+			// 이 메서드를 계속 실행하지 마세요. Device가 제거되고 다시 만들어집니다.
+			return;
+		}
+		else
+		{
+			DX::ThrowIfFailed(hr);
+		}
+	}
+	else
+	{
+		// 그렇지 않으면 기존 Direct3D 장치와 동일한 어댑터를 사용하여 새 항목을 만듭니다.
+		DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
+
+		swapChainDesc.Width = backBufferWidth;						// 창의 크기를 맞춥니다.
+		swapChainDesc.Height = backBufferHeight;
+		swapChainDesc.Format = m_backBufferFormat;
+		swapChainDesc.Stereo = false;
+		swapChainDesc.SampleDesc.Count = 1;							// 다중 샘플링을 사용하지 않습니다.
+		swapChainDesc.SampleDesc.Quality = 0;
+		swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+		swapChainDesc.BufferCount = g_frameCount;					// 3중 버퍼링을 사용하여 대기 시간을 최소화합니다.
+		swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;	// 모든 Windows 유니버설 앱은 _FLIP_ SwapEffects를 사용해야 합니다.
+		swapChainDesc.Flags = 0;
+		swapChainDesc.Scaling = DXGI_SCALING_NONE;
+		swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
+
+		ComPtr<IDXGISwapChain1> swapChain;
+		DX::ThrowIfFailed(
+			m_dxgiFactory->CreateSwapChainForCoreWindow(
+				m_commandQueue.Get(),								// 스왑 체인에는 DirectX 12의 명령 큐에 대한 참조가 필요합니다.
+				reinterpret_cast<IUnknown*>(m_window.Get()),
+				&swapChainDesc,
+				nullptr,
+				&swapChain
+			)
+		);
+
+		DX::ThrowIfFailed(swapChain.As(&m_swapChain));
+	}
+
+	// 스왑 체인 백 버퍼의 렌더링 대상 뷰를 만듭니다.
+	{
+		m_currentFrame = m_swapChain->GetCurrentBackBufferIndex();
+		CD3DX12_CPU_DESCRIPTOR_HANDLE rtvDescriptor(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
+		for (UINT n = 0; n < g_frameCount; n++)
+		{
+			DX::ThrowIfFailed(m_swapChain->GetBuffer(n, IID_PPV_ARGS(&m_renderTargets[n])));
+			m_d3dDevice->CreateRenderTargetView(m_renderTargets[n].Get(), nullptr, rtvDescriptor);
+			rtvDescriptor.Offset(m_rtvDescriptorSize);
+
+			WCHAR name[25];
+			if (swprintf_s(name, L"m_renderTargets[%u]", n) > 0)
+			{
+				DX::SetName(m_renderTargets[n].Get(), name);
+			}
+		}
+	}
+
+	// 전체 창을 대상으로 하기 위한 3D 렌더링 뷰포트를 설정합니다.
+	m_screenViewport = { 0.0f, 0.0f, m_outputSize.Width, m_outputSize.Height, 0.0f, 1.0f };
+}
+
+// 스왑 체인의 콘텐츠를 화면에 표시합니다.
+void Device::Present()
+{
+	// 첫 번째 인수는 DXGI에 VSync까지 차단하도록 지시하여 응용 프로그램이
+	// 다음 VSync까지 대기하도록 합니다. 이를 통해 화면에 표시되지 않는 프레임을
+	// 렌더링하는 주기를 낭비하지 않을 수 있습니다.
+	HRESULT hr = m_swapChain->Present(1, 0);
+
+	// 연결이 끊기거나 드라이버 업그레이드로 인해 장치가 제거되면 
+	// 모든 장치 리소스를 다시 만들어야 합니다.
+	if (hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET)
+	{
+		m_deviceRemoved = true;
+	}
+	else
+	{
+		DX::ThrowIfFailed(hr);
+
+		MoveToNextFrame();
+	}
+}
+
+// 다음 프레임을 렌더링하도록 준비합니다.
+void Device::MoveToNextFrame()
+{
+	// 큐에서 신호 명령을 예약합니다.
+	const UINT64 currentFenceValue = m_fenceValues[m_currentFrame];
+	DX::ThrowIfFailed(m_commandQueue->Signal(m_fence.Get(), currentFenceValue));
+
+	//프레임 인덱스로 이동합니다.
+	m_currentFrame = m_swapChain->GetCurrentBackBufferIndex();
+
+	// 다음 프레임을 시작할 준비가 되었는지 확인하세요.
+	if (m_fence->GetCompletedValue() < m_fenceValues[m_currentFrame])
+	{
+		DX::ThrowIfFailed(m_fence->SetEventOnCompletion(m_fenceValues[m_currentFrame], m_fenceEvent));
+		WaitForSingleObjectEx(m_fenceEvent, INFINITE, FALSE);
+	}
+
+	// 다음 프레임에 대한 fence 값을 설정합니다.
+	m_fenceValues[m_currentFrame] = currentFenceValue + 1;
+}
+
+

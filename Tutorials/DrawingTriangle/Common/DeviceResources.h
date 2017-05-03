@@ -4,7 +4,7 @@ namespace DX
 {
 	static const UINT c_frameCount = 3;		// 3중 버퍼링을 사용합니다.
 
-	// 모든 DirectX 장치 리소스를 제어합니다.
+											// 모든 DirectX 장치 리소스를 제어합니다.
 	class DeviceResources
 	{
 	public:
@@ -18,26 +18,26 @@ namespace DX
 		void WaitForGpu();
 
 		// 렌더링 대상의 크기(픽셀)입니다.
-		Windows::Foundation::Size	GetOutputSize() const				{ return m_outputSize; }
+		Windows::Foundation::Size	GetOutputSize() const { return m_outputSize; }
 
 		// 렌더링 대상의 크기(DIP)입니다.
-		Windows::Foundation::Size	GetLogicalSize() const				{ return m_logicalSize; }
+		Windows::Foundation::Size	GetLogicalSize() const { return m_logicalSize; }
 
-		float						GetDpi() const						{ return m_effectiveDpi; }
-		bool						IsDeviceRemoved() const				{ return m_deviceRemoved; }
+		float						GetDpi() const { return m_effectiveDpi; }
+		bool						IsDeviceRemoved() const { return m_deviceRemoved; }
 
 		// D3D 접근자입니다.
-		ID3D12Device*				GetD3DDevice() const				{ return m_d3dDevice.Get(); }
-		IDXGISwapChain3*			GetSwapChain() const				{ return m_swapChain.Get(); }
-		ID3D12Resource*				GetRenderTarget() const				{ return m_renderTargets[m_currentFrame].Get(); }
-		ID3D12Resource*				GetDepthStencil() const				{ return m_depthStencil.Get(); }
-		ID3D12CommandQueue*			GetCommandQueue() const				{ return m_commandQueue.Get(); }
-		ID3D12CommandAllocator*		GetCommandAllocator() const			{ return m_commandAllocators[m_currentFrame].Get(); }
-		DXGI_FORMAT					GetBackBufferFormat() const			{ return m_backBufferFormat; }
-		DXGI_FORMAT					GetDepthBufferFormat() const		{ return m_depthBufferFormat; }
-		D3D12_VIEWPORT				GetScreenViewport() const			{ return m_screenViewport; }
-		DirectX::XMFLOAT4X4			GetOrientationTransform3D() const	{ return m_orientationTransform3D; }
-		UINT						GetCurrentFrameIndex() const		{ return m_currentFrame; }
+		ID3D12Device*				GetD3DDevice() const { return m_d3dDevice.Get(); }
+		IDXGISwapChain3*			GetSwapChain() const { return m_swapChain.Get(); }
+		ID3D12Resource*				GetRenderTarget() const { return m_renderTargets[m_currentFrame].Get(); }
+		ID3D12Resource*				GetDepthStencil() const { return m_depthStencil.Get(); }
+		ID3D12CommandQueue*			GetCommandQueue() const { return m_commandQueue.Get(); }
+		ID3D12CommandAllocator*		GetCommandAllocator() const { return m_commandAllocators[m_currentFrame].Get(); }
+		DXGI_FORMAT					GetBackBufferFormat() const { return m_backBufferFormat; }
+		DXGI_FORMAT					GetDepthBufferFormat() const { return m_depthBufferFormat; }
+		D3D12_VIEWPORT				GetScreenViewport() const { return m_screenViewport; }
+		DirectX::XMFLOAT4X4			GetOrientationTransform3D() const { return m_orientationTransform3D; }
+		UINT						GetCurrentFrameIndex() const { return m_currentFrame; }
 
 		CD3DX12_CPU_DESCRIPTOR_HANDLE GetRenderTargetView() const
 		{

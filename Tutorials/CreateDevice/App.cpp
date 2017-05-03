@@ -44,25 +44,17 @@ void App::Initialize(CoreApplicationView^ applicationView)
 	// CoreWindow를 활성 상태로 만들고 창에서 렌더링을 시작할 수 있습니다.
 	applicationView->Activated += ref new TypedEventHandler<CoreApplicationView^, IActivatedEventArgs^>(this, &App::OnActivated);
 	CoreApplication::Suspending += ref new EventHandler<SuspendingEventArgs^>(this, &App::OnSuspending);
-	CoreApplication::Resuming += ref new EventHandler<Platform::Object^>(this, &App::OnResuming);
 	m_device = std::make_shared<Device>();
-
-
 }
 
 // CoreWindow 개체가 생성(또는 다시 생성)될 때 호출됩니다.
 void App::SetWindow(CoreWindow^ window)
 {
-	window->SizeChanged += ref new TypedEventHandler<CoreWindow^, WindowSizeChangedEventArgs^>(this, &App::OnWindowSizeChanged);
 	window->VisibilityChanged += ref new TypedEventHandler<CoreWindow^, VisibilityChangedEventArgs^>(this, &App::OnVisibilityChanged);
 	window->Closed += ref new TypedEventHandler<CoreWindow^, CoreWindowEventArgs^>(this, &App::OnWindowClosed);
 
 	DisplayInformation^ currentDisplayInformation = DisplayInformation::GetForCurrentView();
-	currentDisplayInformation->DpiChanged += ref new TypedEventHandler<DisplayInformation^, Object^>(this, &App::OnDpiChanged);
-	currentDisplayInformation->OrientationChanged += ref new TypedEventHandler<DisplayInformation^, Object^>(this, &App::OnOrientationChanged);
-	DisplayInformation::DisplayContentsInvalidated += ref new TypedEventHandler<DisplayInformation^, Object^>(this, &App::OnDisplayContentsInvalidated);
 	m_device->SetWindow(window);
-
 }
 
 // 장면 리소스를 초기화하거나 이전에 저장한 응용 프로그램 상태를 로드합니다.
@@ -114,18 +106,7 @@ void App::OnSuspending(Platform::Object^ sender, SuspendingEventArgs^ args)
 		deferral->Complete();
 	});
 }
-void App::OnResuming(Platform::Object^ sender, Platform::Object^ args)
-{
-	// 일시 중단 시 언로드된 모든 데이터 또는 상태를 복원합니다. 기본적으로 데이터
-	// 및 상태는 일시 중단 이후 다시 시작할 때 유지됩니다. 이 이벤트는
-	// 응용 프로그램을 이전에 종료한 경우 발생하지 않습니다.
-}
 
-// 창 이벤트 처리기입니다.
-void App::OnWindowSizeChanged(CoreWindow^ sender, WindowSizeChangedEventArgs^ args)
-{
-	//GetDeviceResources()->SetLogicalSize(Size(sender->Bounds.Width, sender->Bounds.Height));
-}
 void App::OnVisibilityChanged(CoreWindow^ sender, VisibilityChangedEventArgs^ args)
 {
 	m_windowVisible = args->Visible;
@@ -133,23 +114,5 @@ void App::OnVisibilityChanged(CoreWindow^ sender, VisibilityChangedEventArgs^ ar
 void App::OnWindowClosed(CoreWindow^ sender, CoreWindowEventArgs^ args)
 {
 	m_windowClosed = true;
-}
-
-// DisplayInformation 이벤트 처리기입니다.
-void App::OnDpiChanged(DisplayInformation^ sender, Object^ args)
-{
-	// 참고: 여기에서 검색된 LogicalDpi의 값은 고해상도 장치용으로 크기가 조정되는 경우
-	// 앱의 유효 DPI와 일치하지 않을 수 있습니다. DPI가 DeviceResources에서 설정되면
-	// 항상 GetDpi 메서드를 사용하여 DPI를 검색해야 합니다.
-	// 자세한 내용은 DeviceResources.cpp를 참조하세요.
-	//GetDeviceResources()->SetDpi(sender->LogicalDpi);
-}
-void App::OnOrientationChanged(DisplayInformation^ sender, Object^ args)
-{
-	//GetDeviceResources()->SetCurrentOrientation(sender->CurrentOrientation);
-}
-void App::OnDisplayContentsInvalidated(DisplayInformation^ sender, Object^ args)
-{
-	//GetDeviceResources()->ValidateDevice();
 }
 
